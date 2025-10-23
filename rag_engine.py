@@ -1,13 +1,3 @@
-"""
-TTZ.KT AI - Multi-Format RAG Engine for OpenAI
-ENHANCED FINAL VERSION with General Chat Mode
-- Works with OR without documents
-- Memory-only processing (no disk storage)
-- 13+ file formats supported
-- Automatic temperature handling for o-series
-- Hot model switching
-"""
-
 import os
 import time
 import tempfile
