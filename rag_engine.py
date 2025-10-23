@@ -4,7 +4,7 @@ import tempfile
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain.chains import ConversationalRetrievalChain
+from langchain.chain import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 
 # Document loaders for different formats
