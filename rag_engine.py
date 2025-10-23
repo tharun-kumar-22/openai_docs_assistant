@@ -1,11 +1,18 @@
 import os
 import time
 import tempfile
+import numpy as np
+from numpy.linalg import norm
+from dotenv import load_dotenv
+
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain.chain import ConversationalRetrievalChain
+from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
+from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
+
 
 # Document loaders for different formats
 from langchain_community.document_loaders import (
