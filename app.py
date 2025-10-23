@@ -1,13 +1,3 @@
-"""
-TTZ.KT AI Platform - OpenAI Version
-ENHANCED FINAL VERSION with General Chat Mode
-- Chat works with OR without documents
-- Edit, Retry, Copy buttons
-- Memory-only processing
-- 13+ file formats
-- Hot model switching
-"""
-
 import streamlit as st
 import os
 from dotenv import load_dotenv
