@@ -1,0 +1,54 @@
+# TTZ.KT AI - Git Ignore File
+
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+*.env
+.streamlit/secrets.toml
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Streamlit cache
+.streamlit/cache/
+
+# Vector database (temporary)
+vectors/
+faiss_index/
+
+# Temporary files
+temp_uploads/
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Build files
+build/
+dist/
+*.egg-info/

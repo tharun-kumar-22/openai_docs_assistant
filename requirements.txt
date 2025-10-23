@@ -1,0 +1,38 @@
+# TTZ.KT AI - OpenAI RAG System Requirements
+# PERFECT FINAL VERSION
+
+# Core Framework
+streamlit>=1.28.0
+python-dotenv>=1.0.0
+
+# LangChain Core
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-community>=0.0.20
+
+# OpenAI
+openai>=1.12.0
+
+# Vector Store
+faiss-cpu>=1.7.4
+
+# Document Processing
+pypdf>=3.17.0
+python-docx>=1.1.0
+openpyxl>=3.1.2
+pandas>=2.0.0
+python-multipart>=0.0.6
+
+# Unstructured (for advanced document parsing)
+unstructured>=0.11.0
+unstructured[pdf]>=0.11.0
+unstructured[docx]>=0.11.0
+
+# Image Processing (optional - uncomment for OCR support)
+# unstructured[local-inference]>=0.11.0
+# pillow>=10.0.0
+# pytesseract>=0.3.10
+
+# Additional utilities
+tiktoken>=0.5.2
+pyperclip>=1.8.2
