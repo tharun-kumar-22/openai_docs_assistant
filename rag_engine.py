@@ -9,7 +9,6 @@ from langchain_community.vectorstores import FAISS
 
 # --- Modern retrieval + memory ---
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain.memory import ConversationBufferMemory
 
 # --- Document loaders for different formats ---
 from langchain_community.document_loaders import (
