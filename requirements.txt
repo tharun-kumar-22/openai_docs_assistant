@@ -20,3 +20,44 @@ tiktoken
 pyperclip
 numpy
 cryptography
+
+# TTZ AI - Requirements matching your working local environment
+# Based on conda list from ttz_env
+
+# Core
+streamlit
+python-dotenv
+
+# LangChain - ALL required packages from your local env
+langchain
+langchain-openai
+langchain-community
+langchain-core
+langchain-text-splitters
+
+# OpenAI
+openai
+
+# Vector Store
+faiss-cpu
+
+# Document Processing
+pypdf
+PyPDF2
+python-docx
+docx2txt
+openpyxl
+pandas
+
+# Unstructured (for advanced docs)
+unstructured
+pillow
+
+# Embeddings
+sentence-transformers
+
+# Utils
+tiktoken
+pyperclip
+numpy
+cryptography
