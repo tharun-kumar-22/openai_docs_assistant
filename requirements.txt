@@ -1,34 +1,42 @@
-# TTZ.KT AI - Requirements (Latest Versions)
-# No version numbers - installs latest compatible versions
+# TTZ.KT AI - OpenAI RAG System
+# FIXED FOR STREAMLIT CLOUD - October 2025
+# All dependencies with compatible versions
 
-# Core
-streamlit
-python-dotenv
+# Core Framework
+streamlit>=1.28.0
+python-dotenv>=1.0.0
 
-# LangChain
-langchain
-langchain-openai
-langchain-community
-langchain-core
-langchain-text-splitters
+# LangChain - FIXED PACKAGE STRUCTURE
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-community>=0.3.0
+langchain-core>=0.3.0
+langchain-text-splitters>=0.3.0
 
 # OpenAI
-openai
+openai>=1.12.0
 
 # Vector Store
-faiss-cpu
+faiss-cpu>=1.7.4
 
 # Document Processing
-pypdf
-python-docx
-docx2txt
-openpyxl
-pandas
-python-multipart
+pypdf>=4.0.0
+python-docx>=1.1.0
+docx2txt>=0.8
+openpyxl>=3.1.2
+pandas>=2.0.0
+python-multipart>=0.0.6
 
-# Unstructured
-unstructured
+# Unstructured (for advanced document parsing)
+unstructured>=0.15.0
+unstructured-inference>=0.7.0
+pillow>=10.0.0
+pdfminer.six>=20221105
 
-# Utils
-tiktoken
-pyperclip
+# Additional utilities
+tiktoken>=0.5.2
+pyperclip>=1.8.2
+
+# Optional: Image processing (OCR)
+# pytesseract>=0.3.10
+# pdf2image>=1.16.3
