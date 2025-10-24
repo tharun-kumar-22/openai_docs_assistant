@@ -2,7 +2,7 @@ import os
 import time
 import tempfile
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter  # FIXED IMPORT
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
@@ -27,7 +27,13 @@ except ImportError:
 
 
 class RAGEngine:
-    """Multi-Format RAG Engine with memory-only processing"""
+    """
+    Multi-Format RAG Engine with General Chat Mode
+    ✅ Works with OR without documents
+    ✅ Memory-only processing
+    ✅ 13+ file formats
+    ✅ o-series temperature handling
+    """
     
     def __init__(self, openai_api_key, model="gpt-4o-mini"):
         """Initialize RAG Engine with OpenAI API key and model selection"""
@@ -37,6 +43,7 @@ class RAGEngine:
         self.vectorstore = None
         self.chain = None
         self.llm = None
+        self.chat_llm = None  # For general chat without documents
         self.memory = None
         self.processed_documents = []
         
@@ -46,21 +53,56 @@ class RAGEngine:
             openai_api_key=openai_api_key
         )
         
+        # Initialize chat LLM immediately for general chat
+        self._init_chat_llm()
+        
         print("[RAG Engine] Multi-format support enabled")
         print("[RAG Engine] Memory-only processing (no disk storage)")
         print(f"[RAG Engine] Image support: {'✅ Enabled' if IMAGE_SUPPORT else '⚠️ Disabled'}")
+        print("[RAG Engine] General chat mode: ✅ Available")
         print("[RAG Engine] Ready!")
     
     def _get_temperature(self, model_name):
         """
         Get the correct temperature for a model.
-        o-series models require temperature=1, others use 0.7
+        - o-series models (o1, o3) require temperature=1
+        - GPT-5 models use temperature=0.8 (optimal for latest model)
+        - All other models use temperature=0.7
         """
-        if model_name.startswith("o3") or model_name.startswith("o4"):
+        if model_name.startswith("o1") or model_name.startswith("o3"):
             print(f"[Temperature] Using temperature=1 for reasoning model: {model_name}")
             return 1.0
+        elif model_name.startswith("gpt-5"):
+            print(f"[Temperature] Using temperature=0.8 for GPT-5: {model_name}")
+            return 0.8
         else:
             return 0.7
+    
+    def _init_chat_llm(self):
+        """Initialize LLM for general chat (without documents)"""
+        temperature = self._get_temperature(self.model)
+        
+        self.chat_llm = ChatOpenAI(
+            model=self.model,
+            temperature=temperature,
+            openai_api_key=self.openai_api_key
+        )
+        print(f"[Chat LLM] Initialized for general chat (temperature={temperature})")
+    
+    def _chat_direct(self, message):
+        """Direct chat without document retrieval"""
+        if not self.chat_llm:
+            self._init_chat_llm()
+        
+        try:
+            response = self.chat_llm.invoke(message)
+            return {
+                "answer": response.content,
+                "source_documents": []
+            }
+        except Exception as e:
+            print(f"[ERROR] Chat failed: {e}")
+            raise
     
     def _detect_file_type(self, file_name):
         """Detect file type based on extension"""
@@ -322,11 +364,9 @@ class RAGEngine:
     def switch_model(self, new_model):
         """
         Switch to a different OpenAI model without reprocessing documents
-        Only recreates the LLM and chain, keeps vectorstore intact
+        Updates both chat LLM and RAG LLM (if documents loaded)
+        Automatically uses correct temperature for the model
         """
-        if not self.vectorstore:
-            raise ValueError("No documents processed yet. Process documents first.")
-        
         print(f"[Model Switch] Switching from {self.model} to {new_model}...")
         old_model = self.model
         self.model = new_model
@@ -335,24 +375,42 @@ class RAGEngine:
             # Get correct temperature for new model
             temperature = self._get_temperature(new_model)
             
-            # Update LLM with new model and appropriate temperature
-            self.llm = ChatOpenAI(
+            # Update chat LLM (always available for general chat)
+            self.chat_llm = ChatOpenAI(
                 model=new_model,
                 temperature=temperature,
                 openai_api_key=self.openai_api_key
             )
+            print(f"[Model Switch] Chat LLM updated (temperature={temperature})")
             
-            # Recreate chain with new LLM (keeps same vectorstore and memory)
-            self.chain = ConversationalRetrievalChain.from_llm(
-                llm=self.llm,
-                retriever=self.vectorstore.as_retriever(
-                    search_type="similarity",
-                    search_kwargs={"k": 4}
-                ),
-                memory=self.memory,
-                return_source_documents=True,
-                verbose=False
-            )
+            # Update RAG LLM only if documents are loaded
+            if self.vectorstore:
+                self.llm = ChatOpenAI(
+                    model=new_model,
+                    temperature=temperature,
+                    openai_api_key=self.openai_api_key
+                )
+                
+                # Ensure memory exists
+                if not self.memory:
+                    self.memory = ConversationBufferMemory(
+                        memory_key="chat_history",
+                        return_messages=True,
+                        output_key="answer"
+                    )
+                
+                # Recreate chain with new LLM (keeps same vectorstore and memory)
+                self.chain = ConversationalRetrievalChain.from_llm(
+                    llm=self.llm,
+                    retriever=self.vectorstore.as_retriever(
+                        search_type="similarity",
+                        search_kwargs={"k": 4}
+                    ),
+                    memory=self.memory,
+                    return_source_documents=True,
+                    verbose=False
+                )
+                print(f"[Model Switch] RAG chain updated")
             
             print(f"[Model Switch] Successfully switched to {new_model} (temperature={temperature})!")
             
@@ -363,34 +421,59 @@ class RAGEngine:
             raise
     
     def ask_question(self, question):
-        """Ask a question and get response with sources"""
-        if not self.chain:
-            raise ValueError("Chain not initialized. Setup chain first.")
+        """
+        Ask a question - works with OR without documents
+        - If documents loaded: Uses RAG chain for document-aware responses
+        - If no documents: Uses direct chat for general conversation
+        """
+        print(f"\n{'='*60}")
+        print(f"[QUERY] {question}")
+        print(f"{'='*60}")
         
-        print(f"[Query] Using {self.model}: '{question}'")
-        start_time = time.time()
+        total_start = time.time()
         
         try:
+            # If no documents loaded, use direct chat
+            if not self.chain:
+                print("[INFO] No documents loaded - using general chat mode")
+                return self._chat_direct(question)
+            
+            # When documents ARE loaded, use RAG chain
             response = self.chain.invoke({"question": question})
-            print(f"[Query] {self.model} answered in {time.time() - start_time:.2f}s")
+            
+            total_time = time.time() - total_start
+            
+            sources = response.get("source_documents", [])
+            print(f"\n[INFO] Retrieved {len(sources)} chunks in {total_time:.2f}s")
+            print(f"[INFO] Total response time: {total_time:.2f}s")
+            
+            # Show what was retrieved (for debugging)
+            for i, doc in enumerate(sources, 1):
+                preview = doc.page_content[:150].replace('\n', ' ')
+                print(f"  Chunk {i}: {preview}...")
+            
+            print(f"{'='*60}\n")
             
             return {
                 "answer": response["answer"],
-                "source_documents": response.get("source_documents", [])
+                "source_documents": sources
             }
             
         except Exception as e:
-            print(f"[Error] Query failed: {str(e)}")
+            print(f"[ERROR] Query failed: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     def clear_documents(self):
-        """Clear all processed documents and vectorstore"""
+        """Clear all processed documents and vectorstore (keeps chat LLM for general chat)"""
         self.vectorstore = None
         self.chain = None
         self.llm = None
         self.memory = None
         self.processed_documents = []
         print("[RAG Engine] All documents cleared (memory freed)")
+        print("[RAG Engine] General chat mode still available")
     
     def get_stats(self):
         """Get current system statistics"""
@@ -399,6 +482,7 @@ class RAGEngine:
             "documents_processed": len(self.processed_documents),
             "vectorstore_size": self.vectorstore.index.ntotal if self.vectorstore else 0,
             "chain_ready": self.chain is not None,
+            "chat_ready": self.chat_llm is not None,
             "storage_type": "memory_only"
         }
     
