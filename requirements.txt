@@ -1,63 +1,22 @@
 streamlit
 python-dotenv
-langchain
-langchain-openai
-langchain-community
-langchain-core
-langchain-text-splitters
-openai
-faiss-cpu
-pypdf
-PyPDF2
-python-docx
-docx2txt
-openpyxl
-pandas
-unstructured
-pillow
-sentence-transformers
-tiktoken
-pyperclip
-numpy
-cryptography
-
-# TTZ AI - Requirements matching your working local environment
-# Based on conda list from ttz_env
-
-# Core
-streamlit
-python-dotenv
-
-# LangChain - ALL required packages from your local env
-langchain
-langchain-openai
-langchain-community
-langchain-core
-langchain-text-splitters
-
-# OpenAI
-openai
-
-# Vector Store
-faiss-cpu
-
-# Document Processing
-pypdf
-PyPDF2
-python-docx
-docx2txt
-openpyxl
-pandas
-
-# Unstructured (for advanced docs)
-unstructured
-pillow
-
-# Embeddings
-sentence-transformers
-
-# Utils
-tiktoken
-pyperclip
-numpy
-cryptography
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-community>=0.3.0
+langchain-core>=0.3.0
+langchain-text-splitters>=0.3.0
+openai>=1.50.0
+faiss-cpu>=1.8.0
+pypdf>=4.0.0
+PyPDF2>=3.0.0
+python-docx>=1.0.1
+docx2txt>=0.8
+openpyxl>=3.1.0
+pandas>=2.0.0
+unstructured>=0.15.0
+pillow>=10.0.0
+sentence-transformers>=3.0.0
+tiktoken>=0.7.0
+pyperclip>=1.8.2
+numpy>=1.26.0
+cryptography>=42.0.0
