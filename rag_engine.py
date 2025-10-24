@@ -1,13 +1,19 @@
 import os
 import time
 import tempfile
+
+# --- LangChain core + OpenAI ---
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain.chains import ConversationalRetrievalChain
+
+# --- Modern retrieval + memory ---
+from langchain.chains import create_retrieval_chain
+from langchain.chains.history_aware_retriever import create_history_aware_retriever
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain.memory import ConversationBufferMemory
 
-# Document loaders for different formats
+# --- Document loaders for different formats ---
 from langchain_community.document_loaders import (
     PyPDFLoader,
     Docx2txtLoader,
@@ -16,7 +22,7 @@ from langchain_community.document_loaders import (
     UnstructuredExcelLoader,
     JSONLoader,
     UnstructuredXMLLoader,
-    UnstructuredRTFLoader
+    UnstructuredRTFLoader,
 )
 
 try:
