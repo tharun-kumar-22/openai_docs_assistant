@@ -123,8 +123,9 @@ with st.sidebar:
     available_models = {
         "🌟 GPT-5 (Latest 2025)": [
             "gpt-5",
-            "gpt-5-turbo",
-            "gpt-5-mini"
+            "gpt-5-mini",
+            "gpt-5-nano",
+            "gpt-5-chat"
         ],
         "⭐ GPT-4o (Recommended)": [
             "gpt-4o",
@@ -171,8 +172,9 @@ with st.sidebar:
     
     model_info = {
         "gpt-5": "🌟 Most advanced AI (2025)",
-        "gpt-5-turbo": "🚀 Fast GPT-5 variant",
         "gpt-5-mini": "⚡ Efficient GPT-5",
+        "gpt-5-nano": "🚀 Fastest GPT-5 (low latency)",
+        "gpt-5-chat": "💬 Conversational GPT-5",
         "gpt-4o": "⭐ Multimodal flagship",
         "gpt-4o-mini": "⚡ Fast & efficient",
         "o1": "🧠 Deep reasoning",
