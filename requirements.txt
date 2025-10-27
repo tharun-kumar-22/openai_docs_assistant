@@ -1,22 +1,35 @@
-streamlit
-python-dotenv
+# TTZ AI - WORKING Requirements
+# Using LangChain 0.2.x (stable, has all features)
+
+streamlit>=1.28.0
+python-dotenv>=1.0.0
+
+# LangChain 0.2.x - Stable version with chains
 langchain==0.2.16
 langchain-openai==0.1.25
 langchain-community==0.2.16
 langchain-core==0.2.38
 langchain-text-splitters==0.2.4
-openai>=1.50.0
+
+# OpenAI
+openai>=1.30.0
+
+# Vector Store
 faiss-cpu>=1.8.0
+
+# Document Processing
 pypdf>=4.0.0
 PyPDF2>=3.0.0
 python-docx>=1.0.1
 docx2txt>=0.8
 openpyxl>=3.1.0
 pandas>=2.0.0
+
+# Unstructured
 unstructured>=0.15.0
 pillow>=10.0.0
-sentence-transformers>=3.0.0
+
+# Utils
 tiktoken>=0.7.0
 pyperclip>=1.8.2
 numpy>=1.26.0
-cryptography>=42.0.0
