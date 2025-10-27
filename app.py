@@ -101,8 +101,8 @@ try:
 except:
     api_key = os.getenv("OPENAI_API_KEY", "")
 
-st.markdown('<h1 class="main-header">🚀 TTZ.KT AI Platform 2025</h1>', unsafe_allow_html=True)
-st.markdown("### *Multi-Format Document Assistant - OpenAI Powered*")
+st.markdown('<h1 style="color: red;">Ready To Go TTZ.KT AI Platform 2025</h1>', unsafe_allow_html=True)
+st.markdown("### *Files Assistant + General Chat - OpenAI Powered*")
 st.markdown('<span class="memory-badge">💾 Memory Only - Cloud AI</span>', unsafe_allow_html=True)
 st.markdown("---")
 
