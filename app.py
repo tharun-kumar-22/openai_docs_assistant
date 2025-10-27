@@ -136,7 +136,8 @@ with st.sidebar:
             "o1",
             "o1-mini",
             "o3",
-            "o3-mini"
+            "o3-mini",
+            "o4-mini"
         ],
         "🔷 GPT-4 Turbo": [
             "gpt-4-turbo",
