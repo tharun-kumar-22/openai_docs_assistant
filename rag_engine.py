@@ -28,6 +28,9 @@ try:
 except ImportError:
     IMAGE_SUPPORT = False
 
+from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
+
 
 class RAGEngine:
     """
