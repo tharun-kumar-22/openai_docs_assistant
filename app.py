@@ -135,7 +135,7 @@ with st.sidebar:
         "🎯 o-Series (Reasoning)": [
             "o1",
             "o1-mini",
-            "o3"
+            "o3",
             "o3-mini"
         ],
         "🔷 GPT-4 Turbo": [
