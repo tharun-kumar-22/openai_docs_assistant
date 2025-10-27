@@ -181,6 +181,7 @@ with st.sidebar:
         "o1-mini": "💡 Efficient reasoning",
         "o3": "🔥 Latest reasoning",
         "o3-mini": "🔥 Mini Latest reasoning",
+        "o4-mini": "🔥 Mini Latest reasoning",
         "gpt-4-turbo": "🚀 High performance",
         "gpt-4": "💎 Original GPT-4",
         "gpt-3.5-turbo": "💰 Budget-friendly"
