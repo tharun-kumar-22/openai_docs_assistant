@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
-from rag_engine import RAGEngine
+from rag_engine_with_vision import RAGEngineWithVision
 import time
 import pyperclip
 
@@ -198,7 +198,7 @@ with st.sidebar:
     # Initialize engine automatically if not already done
     if not st.session_state.rag_engine:
         with st.spinner("Initializing RAG engine..."):
-            st.session_state.rag_engine = RAGEngine(openai_api_key=api_key, model=selected_model)
+            st.session_state.rag_engine = RAGEngineWithVision(openai_api_key=api_key, model=selected_model)
             st.session_state.current_model = selected_model
     
     if st.session_state.rag_engine and selected_model != st.session_state.current_model:
