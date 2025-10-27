@@ -124,8 +124,7 @@ with st.sidebar:
         "🌟 GPT-5 (Latest 2025)": [
             "gpt-5",
             "gpt-5-mini",
-            "gpt-5-nano",
-            "gpt-5-chat"
+            "gpt-5-nano"
         ],
         "⭐ GPT-4o (Recommended)": [
             "gpt-4o",
