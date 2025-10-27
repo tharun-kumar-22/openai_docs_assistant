@@ -134,7 +134,6 @@ with st.sidebar:
         ],
         "🎯 o-Series (Reasoning)": [
             "o1",
-            "o1-preview",
             "o1-mini",
             "o3-mini"
         ],
@@ -177,7 +176,6 @@ with st.sidebar:
         "gpt-4o": "⭐ Multimodal flagship",
         "gpt-4o-mini": "⚡ Fast & efficient",
         "o1": "🧠 Deep reasoning",
-        "o1-preview": "🎯 Advanced reasoning preview",
         "o1-mini": "💡 Efficient reasoning",
         "o3-mini": "🔥 Latest reasoning",
         "gpt-4-turbo": "🚀 High performance",
