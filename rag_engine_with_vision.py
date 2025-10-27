@@ -1,10 +1,3 @@
-"""
-Enhanced RAG Engine with TRUE Image Understanding
-- Uses vision models (GPT-4V or LLaVA) to understand images
-- Extracts meaningful descriptions from images
-- Works with all document types + images
-"""
-
 import os
 import time
 import tempfile
