@@ -71,15 +71,12 @@ class RAGEngine:
         """
         Get the correct temperature for a model.
         - o-series models (o1, o3, o4) require temperature=1
-        - GPT-5 models use temperature=0.8 (optimal for latest model)
+        - GPT-5 models also require temperature=1 (not 0.8!)
         - All other models use temperature=0.7
         """
-        if model_name.startswith("o1") or model_name.startswith("o3") or model_name.startswith("o4"):
-            print(f"[Temperature] Using temperature=1 for reasoning model: {model_name}")
+        if model_name.startswith("o1") or model_name.startswith("o3") or model_name.startswith("o4") or model_name.startswith("gpt-5"):
+            print(f"[Temperature] Using temperature=1 for model: {model_name}")
             return 1.0
-        elif model_name.startswith("gpt-5"):
-            print(f"[Temperature] Using temperature=0.8 for GPT-5: {model_name}")
-            return 0.8
         else:
             return 0.7
     
