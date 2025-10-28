@@ -26,7 +26,7 @@ from langchain_community.document_loaders import (
 
 
 class RAGEngineWithVision:
-    """RAG Engine with TRUE image understanding via vision models"""
+    """RAG Engine with TRUE image understanding via vision models + GENERAL CHAT support"""
     
     def __init__(self, openai_api_key, model="gpt-4o-mini", vision_model="gpt-4o-mini"):
         """
@@ -46,7 +46,7 @@ class RAGEngineWithVision:
         self.vision_model = vision_model
         self.vectorstore = None
         self.chain = None
-        self.llm = None
+        self.llm = None  # For general chat
         self.memory = None
         self.processed_documents = []
         
@@ -63,7 +63,16 @@ class RAGEngineWithVision:
             max_tokens=1000
         )
         
+        # ✅ NEW: Initialize LLM for general chat (works without documents)
+        temperature = self._get_temperature(model)
+        self.llm = ChatOpenAI(
+            model=model,
+            temperature=temperature,
+            openai_api_key=openai_api_key
+        )
+        
         print("[RAG Engine] ✅ Ready with vision support!")
+        print("[RAG Engine] ✅ General chat mode enabled!")
     
     def _get_temperature(self, model_name):
         """Get appropriate temperature for model"""
@@ -321,6 +330,7 @@ Be thorough and specific so this description can be used to answer questions abo
         
         temperature = self._get_temperature(self.model)
         
+        # Update the LLM (in case model was switched)
         self.llm = ChatOpenAI(
             model=self.model,
             temperature=temperature,
@@ -348,64 +358,104 @@ Be thorough and specific so this description can be used to answer questions abo
     
     def switch_model(self, new_model):
         """Switch to different model without reprocessing"""
-        if not self.vectorstore:
-            raise ValueError("No documents processed yet")
-        
         print(f"[Model Switch] {self.model} → {new_model}")
         
+        old_model = self.model
+        self.model = new_model
         temperature = self._get_temperature(new_model)
         
-        self.llm = ChatOpenAI(
-            model=new_model,
-            temperature=temperature,
-            openai_api_key=self.openai_api_key
-        )
-        
-        self.chain = ConversationalRetrievalChain.from_llm(
-            llm=self.llm,
-            retriever=self.vectorstore.as_retriever(
-                search_type="similarity",
-                search_kwargs={"k": 6}
-            ),
-            memory=self.memory,
-            return_source_documents=True,
-            verbose=False
-        )
-        
-        self.model = new_model
-        print(f"[Model Switch] ✅ Switched to {new_model}")
+        try:
+            # Update LLM
+            self.llm = ChatOpenAI(
+                model=new_model,
+                temperature=temperature,
+                openai_api_key=self.openai_api_key
+            )
+            
+            # If chain exists (documents loaded), recreate it with new model
+            if self.vectorstore:
+                self.chain = ConversationalRetrievalChain.from_llm(
+                    llm=self.llm,
+                    retriever=self.vectorstore.as_retriever(
+                        search_type="similarity",
+                        search_kwargs={"k": 6}
+                    ),
+                    memory=self.memory,
+                    return_source_documents=True,
+                    verbose=False
+                )
+            
+            print(f"[Model Switch] ✅ Switched to {new_model}")
+            
+        except Exception as e:
+            # Rollback on error
+            self.model = old_model
+            print(f"[Model Switch] ❌ Failed: {str(e)}")
+            raise
     
     def ask_question(self, question):
-        """Ask question and get answer with sources"""
-        if not self.chain:
-            raise ValueError("Chain not initialized")
+        """
+        ✅ FIXED: Ask question with DUAL MODE support
         
+        MODE 1 - General Chat (no documents):
+            - Uses LLM directly for conversation
+            - No retrieval needed
+        
+        MODE 2 - RAG Mode (with documents):
+            - Uses retrieval chain with document context
+            - Returns sources
+        """
         print(f"[Query] {question}")
         start_time = time.time()
         
         try:
-            response = self.chain.invoke({"question": question})
-            elapsed = time.time() - start_time
+            # ✅ MODE 1: GENERAL CHAT (no documents uploaded)
+            if not self.vectorstore or not self.chain:
+                print(f"[Mode] General Chat (no documents)")
+                
+                if not self.llm:
+                    raise ValueError("LLM not initialized")
+                
+                # Direct LLM call for general conversation
+                from langchain_core.messages import HumanMessage
+                response = self.llm.invoke([HumanMessage(content=question)])
+                
+                elapsed = time.time() - start_time
+                print(f"[Query] ✅ Answered in {elapsed:.2f}s (general chat)")
+                
+                return {
+                    "answer": response.content,
+                    "source_documents": [],  # No sources in general chat
+                    "mode": "general_chat"
+                }
             
-            print(f"[Query] ✅ Answered in {elapsed:.2f}s")
-            
-            return {
-                "answer": response["answer"],
-                "source_documents": response.get("source_documents", [])
-            }
+            # ✅ MODE 2: RAG MODE (documents uploaded)
+            else:
+                print(f"[Mode] RAG (using {len(self.processed_documents)} documents)")
+                
+                response = self.chain.invoke({"question": question})
+                
+                elapsed = time.time() - start_time
+                print(f"[Query] ✅ Answered in {elapsed:.2f}s (RAG mode)")
+                
+                return {
+                    "answer": response["answer"],
+                    "source_documents": response.get("source_documents", []),
+                    "mode": "rag"
+                }
             
         except Exception as e:
             print(f"[Error] Query failed: {str(e)}")
             raise
     
     def clear_documents(self):
-        """Clear all processed documents"""
+        """Clear all processed documents (keeps general chat capability)"""
         self.vectorstore = None
         self.chain = None
-        self.llm = None
         self.memory = None
         self.processed_documents = []
-        print("[RAG Engine] ✅ All documents cleared")
+        # Keep self.llm for general chat!
+        print("[RAG Engine] ✅ Documents cleared (general chat still available)")
     
     def get_stats(self):
         """Get system statistics"""
@@ -415,6 +465,7 @@ Be thorough and specific so this description can be used to answer questions abo
             "documents_processed": len(self.processed_documents),
             "vectorstore_size": self.vectorstore.index.ntotal if self.vectorstore else 0,
             "chain_ready": self.chain is not None,
+            "general_chat_ready": self.llm is not None,
             "vision_enabled": True
         }
     
