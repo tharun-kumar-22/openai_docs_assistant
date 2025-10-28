@@ -370,12 +370,23 @@ for idx, message in enumerate(st.session_state.chat_history):
                         font-size: 1.8rem;
                         cursor: pointer;
                         padding: 0.3rem 0.4rem;
-                    " title="Copy">⎘</button>
+                        transition: color 0.2s ease;
+                    " onmouseover="this.style.color='#000'" onmouseout="this.style.color='#999'" title="Copy">⎘</button>
+                    <span id="feedback_{idx}" style="
+                        color: #4CAF50;
+                        font-size: 0.9rem;
+                        margin-left: 5px;
+                        display: none;
+                    ">✓ Copied!</span>
                     <script>
                     function copyToClipboard_{idx}() {{
                         const text = {repr(message["content"])};
                         navigator.clipboard.writeText(text).then(function() {{
-                            alert('✅ Copied to clipboard!');
+                            const feedback = document.getElementById('feedback_{idx}');
+                            feedback.style.display = 'inline';
+                            setTimeout(function() {{
+                                feedback.style.display = 'none';
+                            }}, 2000);
                         }}).catch(function(err) {{
                             console.error('Copy failed:', err);
                         }});
