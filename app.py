@@ -361,20 +361,28 @@ for idx, message in enumerate(st.session_state.chat_history):
                                 except Exception as e:
                                     st.error(f"Error: {str(e)}")
                 with col2:
-                    copy_key = f"copy_clicked_{idx}"
-                    if st.button("⎘", key=f"copy_{idx}", help="Copy"):
-                        st.session_state[copy_key] = True
-                        st.components.v1.html(
-                            f"""
-                            <script>
-                                navigator.clipboard.writeText({repr(message["content"])});
-                            </script>
-                            """,
-                            height=0
-                        )
-                    if st.session_state.get(copy_key):
-                        st.toast("✅ Copied to clipboard!", icon="📋")
-                        st.session_state[copy_key] = False
+                    copy_id = f"copy_text_{idx}"
+                    button_html = f"""
+                    <button onclick="copyToClipboard_{idx}()" style="
+                        background: transparent;
+                        border: none;
+                        color: #999;
+                        font-size: 1.8rem;
+                        cursor: pointer;
+                        padding: 0.3rem 0.4rem;
+                    " title="Copy">⎘</button>
+                    <script>
+                    function copyToClipboard_{idx}() {{
+                        const text = {repr(message["content"])};
+                        navigator.clipboard.writeText(text).then(function() {{
+                            alert('✅ Copied to clipboard!');
+                        }}).catch(function(err) {{
+                            console.error('Copy failed:', err);
+                        }});
+                    }}
+                    </script>
+                    """
+                    st.components.v1.html(button_html, height=40)
                 
                 if "sources" in message and message["sources"]:
                     with st.expander("📚 Sources"):
