@@ -240,6 +240,7 @@ with st.sidebar:
                     st.session_state.rag_engine.create_vectorstore(all_chunks)
                     st.write("🔗 Setting up chain...")
                     st.session_state.rag_engine.setup_chain()
+                    st.session_state.processed_files = st.session_state.rag_engine.processed_documents.copy()
                     status.update(label="✅ Processing complete!", state="complete")
                     st.session_state.document_processed = True
                 else:
@@ -360,9 +361,20 @@ for idx, message in enumerate(st.session_state.chat_history):
                                 except Exception as e:
                                     st.error(f"Error: {str(e)}")
                 with col2:
-                    st.button("⎘", key=f"copy_{idx}", help="Copy", on_click=lambda: None)
-                    if st.session_state.get(f"copy_{idx}"):
-                        st.code(message["content"], language=None)
+                    copy_key = f"copy_clicked_{idx}"
+                    if st.button("⎘", key=f"copy_{idx}", help="Copy"):
+                        st.session_state[copy_key] = True
+                        st.components.v1.html(
+                            f"""
+                            <script>
+                                navigator.clipboard.writeText({repr(message["content"])});
+                            </script>
+                            """,
+                            height=0
+                        )
+                    if st.session_state.get(copy_key):
+                        st.toast("✅ Copied to clipboard!", icon="📋")
+                        st.session_state[copy_key] = False
                 
                 if "sources" in message and message["sources"]:
                     with st.expander("📚 Sources"):
