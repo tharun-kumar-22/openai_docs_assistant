@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 from rag_engine_with_vision import RAGEngineWithVision
 import time
-import pyperclip
 
 load_dotenv()
 
@@ -53,7 +52,6 @@ st.markdown("""
         font-size: 0.8rem;
         font-weight: bold;
     }
-    /* Icon buttons - no border, just hover color change */
     div[data-testid="column"] button {
         background: transparent !important;
         border: none !important;
@@ -70,7 +68,6 @@ st.markdown("""
         color: #000 !important;
         background: transparent !important;
     }
-    /* Chat action icons (edit, retry, copy) - bigger size */
     div[data-testid="column"] button[title="Edit"],
     div[data-testid="column"] button[title="Retry"],
     div[data-testid="column"] button[title="Copy"] {
@@ -94,8 +91,6 @@ if 'edit_mode' not in st.session_state:
 if 'edit_index' not in st.session_state:
     st.session_state.edit_index = None
 
-# Get API key from environment
-# Try Streamlit secrets first (for cloud deployment), then environment variable
 try:
     api_key = st.secrets["OPENAI_API_KEY"]
 except:
@@ -195,58 +190,60 @@ with st.sidebar:
     
     st.markdown(f'<div class="model-info">📌 {info_text}</div>', unsafe_allow_html=True)
     
-    # Initialize engine automatically if not already done
-    if not st.session_state.rag_engine:
-        with st.spinner("Initializing RAG engine..."):
-            st.session_state.rag_engine = RAGEngineWithVision(openai_api_key=api_key, model=selected_model)
+    if selected_model != st.session_state.current_model:
+        if st.session_state.rag_engine:
+            try:
+                st.session_state.rag_engine.switch_model(selected_model)
+                st.session_state.current_model = selected_model
+                st.success(f"✅ Switched to {selected_model}")
+            except Exception as e:
+                st.error(f"❌ Failed: {str(e)}")
+        else:
             st.session_state.current_model = selected_model
     
-    if st.session_state.rag_engine and selected_model != st.session_state.current_model:
-        if st.button("🔄 Switch Model", type="secondary"):
-            with st.spinner(f"Switching to {selected_model}..."):
-                try:
-                    st.session_state.rag_engine.switch_model(selected_model)
-                    st.session_state.current_model = selected_model
-                    st.success(f"✅ Switched to {selected_model}")
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed to switch model: {str(e)}")
-    
     st.markdown("---")
-    st.subheader("📚 Upload Documents")
     
-    st.info("💡 Supports 13+ formats: PDF, Word, Excel, Images, JSON, XML, etc.")
+    st.subheader("📤 Upload Documents")
+    st.caption("💡 Supports 13+ formats: PDF, Word, Excel, Images, JSON, XML, etc.")
     
     uploaded_files = st.file_uploader(
-        "Drop files here",
-        type=["pdf", "docx", "doc", "txt", "rtf", "md", "csv", "xlsx", "xls", "ods", 
-              "json", "xml", "yaml", "yml", "png", "jpg", "jpeg", "bmp", "tiff", "gif"],
+        "Drag and drop files here",
+        type=['pdf', 'docx', 'doc', 'txt', 'rtf', 'csv', 'xlsx', 'xls', 'ods',
+              'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'gif',
+              'json', 'xml', 'yaml', 'yml', 'md'],
         accept_multiple_files=True,
         label_visibility="collapsed"
     )
     
-    if uploaded_files and not st.session_state.document_processed:
+    if uploaded_files:
         if st.button("🚀 Process Documents", type="primary"):
-            with st.spinner("Processing documents..."):
-                try:
-                    all_chunks = []
-                    for uploaded_file in uploaded_files:
-                        st.info(f"📄 Processing: {uploaded_file.name}")
+            if not st.session_state.rag_engine:
+                st.session_state.rag_engine = RAGEngineWithVision(
+                    openai_api_key=api_key,
+                    model=st.session_state.current_model,
+                    vision_model="gpt-4o-mini"
+                )
+            
+            all_chunks = []
+            with st.status("Processing documents...", expanded=True) as status:
+                for idx, uploaded_file in enumerate(uploaded_files, 1):
+                    st.write(f"📄 Processing {idx}/{len(uploaded_files)}: {uploaded_file.name}")
+                    try:
                         chunks = st.session_state.rag_engine.process_uploaded_file(uploaded_file)
                         all_chunks.extend(chunks)
-                        st.session_state.processed_files.append(uploaded_file.name)
-                    
+                        st.write(f"✅ {uploaded_file.name}: {len(chunks)} chunks")
+                    except Exception as e:
+                        st.error(f"❌ {uploaded_file.name}: {str(e)}")
+                
+                if all_chunks:
+                    st.write(f"🔨 Creating vectorstore ({len(all_chunks)} total chunks)...")
                     st.session_state.rag_engine.create_vectorstore(all_chunks)
+                    st.write("🔗 Setting up chain...")
                     st.session_state.rag_engine.setup_chain()
+                    status.update(label="✅ Processing complete!", state="complete")
                     st.session_state.document_processed = True
-                    
-                    st.success(f"✅ Processed {len(uploaded_files)} file(s) - {len(all_chunks)} chunks")
-                    time.sleep(1)
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
+                else:
+                    status.update(label="❌ No documents processed", state="error")
     
     st.markdown("---")
     st.subheader("📊 System Status")
@@ -277,169 +274,151 @@ with st.sidebar:
                 st.session_state.rag_engine.clear_documents()
             st.rerun()
 
-# Main chat interface - ALWAYS AVAILABLE
 st.markdown("---")
 
 if not st.session_state.rag_engine:
-    st.info("Initializing engine...")
+    with st.spinner("Initializing engine..."):
+        st.session_state.rag_engine = RAGEngineWithVision(
+            openai_api_key=api_key,
+            model=st.session_state.current_model,
+            vision_model="gpt-4o-mini"
+        )
+    st.rerun()
+
+if st.session_state.document_processed:
+    st.info(f"🤖 **{st.session_state.current_model}** | {len(st.session_state.processed_files)} file(s) | 💾 Memory Only")
 else:
-    # Show status based on whether documents are loaded
-    if st.session_state.document_processed:
-        st.info(f"🤖 **{st.session_state.current_model}** | {len(st.session_state.processed_files)} file(s) | 💾 Memory Only")
-    else:
-        st.info(f"💬 **Chat Mode** | 🤖 {st.session_state.current_model} | Upload documents for document Q&A")
-    
-    # Display chat history
-    for idx, message in enumerate(st.session_state.chat_history):
-        with st.chat_message(message["role"]):
-            # Check if this message is being edited
-            if st.session_state.edit_mode and st.session_state.edit_index == idx:
-                # Show inline edit interface
-                edited_text = st.text_area(
-                    "Edit message:",
-                    value=message["content"],
-                    height=100,
-                    key=f"edit_area_{idx}",
-                    label_visibility="collapsed"
-                )
-                col1, col2, col3 = st.columns([0.8, 0.8, 8.4])
-                with col1:
-                    if st.button("Send", key=f"send_{idx}", type="primary"):
-                        # Exit edit mode first
-                        st.session_state.edit_mode = False
-                        st.session_state.edit_index = None
-                        
-                        # Remove all messages from edit point onwards
-                        st.session_state.chat_history = st.session_state.chat_history[:idx]
-                        
-                        # Add edited message
-                        st.session_state.chat_history.append({
-                            "role": "user",
-                            "content": edited_text
-                        })
-                        
-                        # Generate new response with spinner
-                        with st.spinner(f"🤔 {st.session_state.current_model} thinking..."):
-                            try:
-                                response = st.session_state.rag_engine.ask_question(edited_text)
-                                st.session_state.chat_history.append({
-                                    "role": "assistant",
-                                    "content": response["answer"],
-                                    "sources": response.get("source_documents", [])
-                                })
-                            except Exception as e:
-                                st.error(f"Error: {str(e)}")
-                        
-                        st.rerun()
-                with col2:
-                    if st.button("Cancel", key=f"cancel_{idx}"):
-                        st.session_state.edit_mode = False
-                        st.session_state.edit_index = None
-                        st.rerun()
-            else:
-                # Normal message display
-                st.markdown(message["content"])
-                
-                # Action buttons
-                if message["role"] == "user":
-                    # User message: Only Edit button
-                    col1, col2 = st.columns([0.5, 9.5])
-                    with col1:
-                        if st.button("✎", key=f"edit_{idx}", help="Edit"):
-                            st.session_state.edit_mode = True
-                            st.session_state.edit_index = idx
-                            st.rerun()
-                
-                elif message["role"] == "assistant":
-                    # AI message: Retry and Copy buttons
-                    col1, col2, col3 = st.columns([0.5, 0.5, 9])
-                    with col1:
-                        if st.button("↻", key=f"retry_{idx}", help="Retry"):
-                            # Find the previous user message
-                            if idx > 0 and st.session_state.chat_history[idx-1]["role"] == "user":
-                                user_msg = st.session_state.chat_history[idx-1]["content"]
-                                # Remove this response
-                                st.session_state.chat_history = st.session_state.chat_history[:idx]
-                                # Regenerate
-                                with st.spinner("Regenerating..."):
-                                    try:
-                                        response = st.session_state.rag_engine.ask_question(user_msg)
-                                        st.session_state.chat_history.append({
-                                            "role": "assistant",
-                                            "content": response["answer"],
-                                            "sources": response.get("source_documents", [])
-                                        })
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.error(f"Error: {str(e)}")
-                    with col2:
-                        if st.button("⎘", key=f"copy_{idx}", help="Copy"):
-                            try:
-                                pyperclip.copy(message["content"])
-                                st.toast("✅ Copied!", icon="📋")
-                            except:
-                                st.toast("❌ Copy failed", icon="⚠️")
+    st.info(f"💬 **Chat Mode** | 🤖 {st.session_state.current_model} | Upload documents for document Q&A")
+
+for idx, message in enumerate(st.session_state.chat_history):
+    with st.chat_message(message["role"]):
+        if st.session_state.edit_mode and st.session_state.edit_index == idx:
+            edited_text = st.text_area(
+                "Edit message:",
+                value=message["content"],
+                height=100,
+                key=f"edit_area_{idx}",
+                label_visibility="collapsed"
+            )
+            col1, col2, col3 = st.columns([0.8, 0.8, 8.4])
+            with col1:
+                if st.button("Send", key=f"send_{idx}", type="primary"):
+                    st.session_state.edit_mode = False
+                    st.session_state.edit_index = None
                     
-                    # Show sources if available
-                    if "sources" in message and message["sources"]:
+                    st.session_state.chat_history = st.session_state.chat_history[:idx]
+                    
+                    st.session_state.chat_history.append({
+                        "role": "user",
+                        "content": edited_text
+                    })
+                    
+                    with st.spinner(f"🤔 {st.session_state.current_model} thinking..."):
+                        try:
+                            response = st.session_state.rag_engine.ask_question(edited_text)
+                            st.session_state.chat_history.append({
+                                "role": "assistant",
+                                "content": response["answer"],
+                                "sources": response.get("source_documents", [])
+                            })
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
+                    
+                    st.rerun()
+            with col2:
+                if st.button("Cancel", key=f"cancel_{idx}"):
+                    st.session_state.edit_mode = False
+                    st.session_state.edit_index = None
+                    st.rerun()
+        else:
+            st.markdown(message["content"])
+            
+            if message["role"] == "user":
+                col1, col2 = st.columns([0.5, 9.5])
+                with col1:
+                    if st.button("✎", key=f"edit_{idx}", help="Edit"):
+                        st.session_state.edit_mode = True
+                        st.session_state.edit_index = idx
+                        st.rerun()
+            
+            elif message["role"] == "assistant":
+                col1, col2, col3 = st.columns([0.5, 0.5, 9])
+                with col1:
+                    if st.button("↻", key=f"retry_{idx}", help="Retry"):
+                        if idx > 0 and st.session_state.chat_history[idx-1]["role"] == "user":
+                            user_msg = st.session_state.chat_history[idx-1]["content"]
+                            st.session_state.chat_history = st.session_state.chat_history[:idx]
+                            with st.spinner("Regenerating..."):
+                                try:
+                                    response = st.session_state.rag_engine.ask_question(user_msg)
+                                    st.session_state.chat_history.append({
+                                        "role": "assistant",
+                                        "content": response["answer"],
+                                        "sources": response.get("source_documents", [])
+                                    })
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {str(e)}")
+                with col2:
+                    st.button("⎘", key=f"copy_{idx}", help="Copy", on_click=lambda: None)
+                    if st.session_state.get(f"copy_{idx}"):
+                        st.code(message["content"], language=None)
+                
+                if "sources" in message and message["sources"]:
+                    with st.expander("📚 Sources"):
+                        for source_idx, source in enumerate(message["sources"], 1):
+                            source_file = source.metadata.get('source', 'Unknown')
+                            source_page = source.metadata.get('page', 'N/A')
+                            file_ext = source_file.split('.')[-1].lower() if '.' in source_file else ''
+                            icon = FORMAT_ICONS.get(file_ext, '🔎')
+                            st.caption(f"**{source_idx}.** {icon} {source_file} (Page: {source_page})")
+                            st.caption(f"_{source.page_content[:200]}..._")
+
+if not st.session_state.edit_mode:
+    if prompt := st.chat_input("Chat or ask about documents..."):
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": prompt
+        })
+        
+        with st.chat_message("user"):
+            st.markdown(prompt)
+            col1, col2 = st.columns([0.5, 9.5])
+            user_idx = len(st.session_state.chat_history) - 1
+            with col1:
+                if st.button("✎", key=f"edit_immediate_{user_idx}", help="Edit"):
+                    st.session_state.edit_mode = True
+                    st.session_state.edit_index = user_idx
+                    st.rerun()
+        
+        with st.chat_message("assistant"):
+            with st.spinner(f"🤔 {st.session_state.current_model} thinking..."):
+                try:
+                    response = st.session_state.rag_engine.ask_question(prompt)
+                    
+                    st.markdown(response["answer"])
+                    
+                    sources = response.get("source_documents", [])
+                    if sources:
                         with st.expander("📚 Sources"):
-                            for source_idx, source in enumerate(message["sources"], 1):
+                            for idx, source in enumerate(sources, 1):
                                 source_file = source.metadata.get('source', 'Unknown')
                                 source_page = source.metadata.get('page', 'N/A')
                                 file_ext = source_file.split('.')[-1].lower() if '.' in source_file else ''
                                 icon = FORMAT_ICONS.get(file_ext, '🔎')
-                                st.caption(f"**{source_idx}.** {icon} {source_file} (Page: {source_page})")
+                                st.caption(f"**{idx}.** {icon} {source_file} (Page: {source_page})")
                                 st.caption(f"_{source.page_content[:200]}..._")
-    
-    # Regular chat input (only show if not in edit mode)
-    if not st.session_state.edit_mode:
-        if prompt := st.chat_input("Chat or ask about documents..."):
-            st.session_state.chat_history.append({
-                "role": "user",
-                "content": prompt
-            })
-            
-            # Show user message with Edit button IMMEDIATELY
-            with st.chat_message("user"):
-                st.markdown(prompt)
-                col1, col2 = st.columns([0.5, 9.5])
-                user_idx = len(st.session_state.chat_history) - 1
-                with col1:
-                    if st.button("✎", key=f"edit_immediate_{user_idx}", help="Edit"):
-                        st.session_state.edit_mode = True
-                        st.session_state.edit_index = user_idx
-                        st.rerun()
-            
-            # Now generate AI response
-            with st.chat_message("assistant"):
-                with st.spinner(f"🤔 {st.session_state.current_model} thinking..."):
-                    try:
-                        response = st.session_state.rag_engine.ask_question(prompt)
-                        
-                        st.markdown(response["answer"])
-                        
-                        sources = response.get("source_documents", [])
-                        if sources:
-                            with st.expander("📚 Sources"):
-                                for idx, source in enumerate(sources, 1):
-                                    source_file = source.metadata.get('source', 'Unknown')
-                                    source_page = source.metadata.get('page', 'N/A')
-                                    file_ext = source_file.split('.')[-1].lower() if '.' in source_file else ''
-                                    icon = FORMAT_ICONS.get(file_ext, '🔎')
-                                    st.caption(f"**{idx}.** {icon} {source_file} (Page: {source_page})")
-                                    st.caption(f"_{source.page_content[:200]}..._")
-                        
-                        st.session_state.chat_history.append({
-                            "role": "assistant",
-                            "content": response["answer"],
-                            "sources": sources
-                        })
-                        
-                        # Rerun to show buttons on new messages
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
+                    
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": response["answer"],
+                        "sources": sources
+                    })
+                    
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
 
 st.markdown("---")
 col1, col2, col3 = st.columns(3)
