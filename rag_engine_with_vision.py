@@ -12,7 +12,6 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import Document
 
-# Document loaders
 from langchain_community.document_loaders import (
     PyPDFLoader,
     Docx2txtLoader,
@@ -26,17 +25,8 @@ from langchain_community.document_loaders import (
 
 
 class RAGEngineWithVision:
-    """RAG Engine with TRUE image understanding via vision models + GENERAL CHAT support"""
     
     def __init__(self, openai_api_key, model="gpt-4o-mini", vision_model="gpt-4o-mini"):
-        """
-        Initialize RAG Engine with vision support
-        
-        Args:
-            openai_api_key: Your OpenAI API key
-            model: Model for text Q&A (gpt-4o-mini, gpt-4o, etc.)
-            vision_model: Model for image understanding (must support vision)
-        """
         print(f"[RAG Engine] Initializing...")
         print(f"[RAG Engine] Text Model: {model}")
         print(f"[RAG Engine] Vision Model: {vision_model}")
@@ -46,24 +36,21 @@ class RAGEngineWithVision:
         self.vision_model = vision_model
         self.vectorstore = None
         self.chain = None
-        self.llm = None  # For general chat
+        self.llm = None
         self.memory = None
         self.processed_documents = []
         
-        # Main embeddings for text
         self.embeddings = OpenAIEmbeddings(
             model="text-embedding-3-small",
             openai_api_key=openai_api_key
         )
         
-        # Vision model for image understanding
         self.vision_llm = ChatOpenAI(
             model=vision_model,
             openai_api_key=openai_api_key,
             max_tokens=1000
         )
         
-        # ✅ NEW: Initialize LLM for general chat (works without documents)
         temperature = self._get_temperature(model)
         self.llm = ChatOpenAI(
             model=model,
@@ -75,37 +62,27 @@ class RAGEngineWithVision:
         print("[RAG Engine] ✅ General chat mode enabled!")
     
     def _get_temperature(self, model_name):
-        """Get appropriate temperature for model"""
         if model_name.startswith("o3") or model_name.startswith("o4"):
             return 1.0
         return 0.7
     
     def _detect_file_type(self, file_name):
-        """Detect file type from extension"""
         ext = os.path.splitext(file_name)[1].lower()
         return ext.lstrip('.')
     
     def _is_image_file(self, file_type):
-        """Check if file is an image"""
         return file_type in ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'webp', 'tiff']
     
     def _process_image_with_vision(self, image_bytes, file_name):
-        """
-        Process image using vision model to extract meaningful content
-        This is the KEY improvement - actually understands images!
-        """
         print(f"[Vision] Analyzing image: {file_name}")
         start_time = time.time()
         
         try:
-            # Convert to base64
             base64_image = base64.b64encode(image_bytes).decode('utf-8')
             
-            # Determine image format
             file_type = self._detect_file_type(file_name)
             mime_type = f"image/{file_type if file_type != 'jpg' else 'jpeg'}"
             
-            # Ask vision model to describe the image in detail
             prompt = """Analyze this image in detail and provide:
 
 1. **Main Content**: What is the primary subject or purpose of this image?
@@ -129,7 +106,6 @@ Be thorough and specific so this description can be used to answer questions abo
                 ]
             )
             
-            # Get vision model's analysis
             response = self.vision_llm.invoke([message])
             description = response.content
             
@@ -137,7 +113,6 @@ Be thorough and specific so this description can be used to answer questions abo
             print(f"[Vision] ✅ Analyzed in {elapsed:.2f}s")
             print(f"[Vision] Extracted {len(description)} chars of description")
             
-            # Create document with the vision model's description
             return Document(
                 page_content=f"[IMAGE: {file_name}]\n\n{description}",
                 metadata={
@@ -149,61 +124,50 @@ Be thorough and specific so this description can be used to answer questions abo
             
         except Exception as e:
             print(f"[Vision] ⚠️ Error processing {file_name}: {str(e)}")
-            # Fallback to basic placeholder
             return Document(
                 page_content=f"[IMAGE: {file_name} - Could not process]",
                 metadata={"source": file_name, "type": "image", "error": str(e)}
             )
     
     def _load_document_by_type(self, file_path, file_bytes=None):
-        """Load document using appropriate loader"""
         file_type = self._detect_file_type(file_path)
         file_name = os.path.basename(file_path)
         
         print(f"[Loader] {file_type.upper()}: {file_name}")
         
         try:
-            # IMAGE FILES - Use vision model!
             if self._is_image_file(file_type):
                 if file_bytes:
                     return [self._process_image_with_vision(file_bytes, file_name)]
                 else:
-                    # Read from file path
                     with open(file_path, 'rb') as f:
                         image_bytes = f.read()
                     return [self._process_image_with_vision(image_bytes, file_name)]
             
-            # PDF files
             elif file_type == 'pdf':
                 loader = PyPDFLoader(file_path)
                 return loader.load()
             
-            # Word documents
             elif file_type in ['docx', 'doc']:
                 loader = Docx2txtLoader(file_path)
                 return loader.load()
             
-            # Text files
             elif file_type in ['txt', 'md']:
                 loader = TextLoader(file_path, encoding='utf-8')
                 return loader.load()
             
-            # RTF files
             elif file_type == 'rtf':
                 loader = UnstructuredRTFLoader(file_path)
                 return loader.load()
             
-            # CSV files
             elif file_type == 'csv':
                 loader = CSVLoader(file_path, encoding='utf-8')
                 return loader.load()
             
-            # Excel files
             elif file_type in ['xlsx', 'xls', 'ods']:
                 loader = UnstructuredExcelLoader(file_path, mode="elements")
                 return loader.load()
             
-            # JSON files
             elif file_type == 'json':
                 loader = JSONLoader(
                     file_path=file_path,
@@ -212,19 +176,15 @@ Be thorough and specific so this description can be used to answer questions abo
                 )
                 return loader.load()
             
-            # XML files
             elif file_type == 'xml':
                 loader = UnstructuredXMLLoader(file_path)
                 return loader.load()
             
-            # YAML files
             elif file_type in ['yaml', 'yml']:
                 loader = TextLoader(file_path, encoding='utf-8')
                 return loader.load()
             
-            # Unsupported format
             else:
-                print(f"[Warning] Unsupported file type: {file_type}")
                 return [Document(
                     page_content=f"[Unsupported file format: {file_type}]",
                     metadata={"source": file_name, "type": "unsupported"}
@@ -238,34 +198,24 @@ Be thorough and specific so this description can be used to answer questions abo
             )]
     
     def process_uploaded_file(self, uploaded_file):
-        """
-        Process uploaded file with VISION SUPPORT for images
-        Memory-only: no permanent disk storage
-        """
         file_name = uploaded_file.name
         file_type = self._detect_file_type(file_name)
         
-        print(f"\n[Processing] {file_name} ({file_type.upper()})")
+        print(f"[Memory Processing] {file_name} | {file_type.upper()}")
         start_time = time.time()
         
         tmp_path = None
         try:
-            # Get file bytes
-            file_bytes = uploaded_file.getvalue()
-            
-            # For images, process directly with vision (no temp file needed)
             if self._is_image_file(file_type):
-                documents = [self._process_image_with_vision(file_bytes, file_name)]
+                image_bytes = uploaded_file.getvalue()
+                documents = [self._process_image_with_vision(image_bytes, file_name)]
             else:
-                # For other files, create temp file
                 with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_type}") as tmp_file:
-                    tmp_file.write(file_bytes)
+                    tmp_file.write(uploaded_file.getvalue())
                     tmp_path = tmp_file.name
                 
-                # Load with appropriate loader
                 documents = self._load_document_by_type(tmp_path)
                 
-                # Delete temp file immediately
                 if tmp_path and os.path.exists(tmp_path):
                     os.unlink(tmp_path)
                     tmp_path = None
@@ -274,9 +224,8 @@ Be thorough and specific so this description can be used to answer questions abo
                 print(f"[Warning] No content extracted from {file_name}")
                 return []
             
-            # Split into chunks (images get one chunk, text gets split)
             if self._is_image_file(file_type):
-                chunks = documents  # Keep image description as one chunk
+                chunks = documents
                 print(f"[Processing] Image processed as 1 chunk")
             else:
                 text_splitter = RecursiveCharacterTextSplitter(
@@ -288,7 +237,6 @@ Be thorough and specific so this description can be used to answer questions abo
                 chunks = text_splitter.split_documents(documents)
                 print(f"[Processing] Split into {len(chunks)} chunks")
             
-            # Update metadata
             for chunk in chunks:
                 chunk.metadata['source'] = file_name
             
@@ -305,7 +253,6 @@ Be thorough and specific so this description can be used to answer questions abo
             raise
     
     def create_vectorstore(self, chunks):
-        """Create FAISS vectorstore from chunks"""
         print(f"[Vectorstore] Creating from {len(chunks)} chunks...")
         start_time = time.time()
         
@@ -322,7 +269,6 @@ Be thorough and specific so this description can be used to answer questions abo
         print(f"[Vectorstore] Total vectors: {self.vectorstore.index.ntotal}")
     
     def setup_chain(self):
-        """Setup conversational retrieval chain"""
         if not self.vectorstore:
             raise ValueError("Vectorstore not initialized")
         
@@ -330,7 +276,6 @@ Be thorough and specific so this description can be used to answer questions abo
         
         temperature = self._get_temperature(self.model)
         
-        # Update the LLM (in case model was switched)
         self.llm = ChatOpenAI(
             model=self.model,
             temperature=temperature,
@@ -347,7 +292,7 @@ Be thorough and specific so this description can be used to answer questions abo
             llm=self.llm,
             retriever=self.vectorstore.as_retriever(
                 search_type="similarity",
-                search_kwargs={"k": 6}  # Retrieve more chunks for better context
+                search_kwargs={"k": 6}
             ),
             memory=self.memory,
             return_source_documents=True,
@@ -357,7 +302,6 @@ Be thorough and specific so this description can be used to answer questions abo
         print(f"[Chain] ✅ Ready (temperature={temperature})!")
     
     def switch_model(self, new_model):
-        """Switch to different model without reprocessing"""
         print(f"[Model Switch] {self.model} → {new_model}")
         
         old_model = self.model
@@ -365,14 +309,12 @@ Be thorough and specific so this description can be used to answer questions abo
         temperature = self._get_temperature(new_model)
         
         try:
-            # Update LLM
             self.llm = ChatOpenAI(
                 model=new_model,
                 temperature=temperature,
                 openai_api_key=self.openai_api_key
             )
             
-            # If chain exists (documents loaded), recreate it with new model
             if self.vectorstore:
                 self.chain = ConversationalRetrievalChain.from_llm(
                     llm=self.llm,
@@ -388,35 +330,21 @@ Be thorough and specific so this description can be used to answer questions abo
             print(f"[Model Switch] ✅ Switched to {new_model}")
             
         except Exception as e:
-            # Rollback on error
             self.model = old_model
             print(f"[Model Switch] ❌ Failed: {str(e)}")
             raise
     
     def ask_question(self, question):
-        """
-        ✅ FIXED: Ask question with DUAL MODE support
-        
-        MODE 1 - General Chat (no documents):
-            - Uses LLM directly for conversation
-            - No retrieval needed
-        
-        MODE 2 - RAG Mode (with documents):
-            - Uses retrieval chain with document context
-            - Returns sources
-        """
         print(f"[Query] {question}")
         start_time = time.time()
         
         try:
-            # ✅ MODE 1: GENERAL CHAT (no documents uploaded)
             if not self.vectorstore or not self.chain:
                 print(f"[Mode] General Chat (no documents)")
                 
                 if not self.llm:
                     raise ValueError("LLM not initialized")
                 
-                # Direct LLM call for general conversation
                 from langchain_core.messages import HumanMessage
                 response = self.llm.invoke([HumanMessage(content=question)])
                 
@@ -425,11 +353,10 @@ Be thorough and specific so this description can be used to answer questions abo
                 
                 return {
                     "answer": response.content,
-                    "source_documents": [],  # No sources in general chat
+                    "source_documents": [],
                     "mode": "general_chat"
                 }
             
-            # ✅ MODE 2: RAG MODE (documents uploaded)
             else:
                 print(f"[Mode] RAG (using {len(self.processed_documents)} documents)")
                 
@@ -449,16 +376,13 @@ Be thorough and specific so this description can be used to answer questions abo
             raise
     
     def clear_documents(self):
-        """Clear all processed documents (keeps general chat capability)"""
         self.vectorstore = None
         self.chain = None
         self.memory = None
         self.processed_documents = []
-        # Keep self.llm for general chat!
         print("[RAG Engine] ✅ Documents cleared (general chat still available)")
     
     def get_stats(self):
-        """Get system statistics"""
         return {
             "model": self.model,
             "vision_model": self.vision_model,
@@ -470,10 +394,9 @@ Be thorough and specific so this description can be used to answer questions abo
         }
     
     def get_supported_formats(self):
-        """Get list of supported formats"""
         return {
             "documents": ["pdf", "docx", "doc", "txt", "rtf", "md"],
             "spreadsheets": ["csv", "xlsx", "xls", "ods"],
-            "images": ["png", "jpg", "jpeg", "bmp", "gif", "webp", "tiff"],  # Now FULLY supported!
+            "images": ["png", "jpg", "jpeg", "bmp", "gif", "webp", "tiff"],
             "data": ["json", "xml", "yaml", "yml"]
         }
