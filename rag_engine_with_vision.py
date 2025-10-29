@@ -70,12 +70,16 @@ class RAGEngineWithVision:
             max_tokens=1000
         )
         
-        temperature = self._get_temperature(model)
-        self.llm = ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            openai_api_key=openai_api_key
-        )
+        if model.startswith("o1") or model.startswith("o3") or model.startswith("o4") or model.startswith("gpt-5"):
+            print(f"[Init] Skipping LLM creation for {model} - will create on-demand with correct temperature")
+            self.llm = None
+        else:
+            temperature = self._get_temperature(model)
+            self.llm = ChatOpenAI(
+                model=model,
+                temperature=temperature,
+                openai_api_key=openai_api_key
+            )
         
         print("[RAG Engine] ✅ Ready with vision support!")
         print("[RAG Engine] ✅ General chat mode enabled!")
@@ -399,7 +403,13 @@ Be thorough and specific so this description can be used to answer questions abo
         if is_casual:
             print("[INFO] Casual message detected - using direct chat")
             if not self.llm:
-                raise ValueError("LLM not initialized")
+                print("[INFO] Creating LLM for casual chat...")
+                temperature = self._get_temperature(self.model)
+                self.llm = ChatOpenAI(
+                    model=self.model,
+                    temperature=temperature,
+                    openai_api_key=self.openai_api_key
+                )
             
             from langchain_core.messages import HumanMessage
             response = self.llm.invoke([HumanMessage(content=question)])
@@ -418,7 +428,13 @@ Be thorough and specific so this description can be used to answer questions abo
                 print(f"[Mode] General Chat (no documents)")
                 
                 if not self.llm:
-                    raise ValueError("LLM not initialized")
+                    print("[INFO] Creating LLM for general chat...")
+                    temperature = self._get_temperature(self.model)
+                    self.llm = ChatOpenAI(
+                        model=self.model,
+                        temperature=temperature,
+                        openai_api_key=self.openai_api_key
+                    )
                 
                 from langchain_core.messages import HumanMessage
                 response = self.llm.invoke([HumanMessage(content=question)])
