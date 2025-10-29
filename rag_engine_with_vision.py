@@ -2,6 +2,7 @@ import os
 import time
 import tempfile
 import base64
+import re
 from io import BytesIO
 from PIL import Image
 
@@ -40,6 +41,24 @@ class RAGEngineWithVision:
         self.memory = None
         self.processed_documents = []
         
+        self.casual_patterns = [
+            r'^(hi|hey|hello|sup|what\'s up|wassup|yo)\b',
+            r'^(thanks|thank you|thx|ty|appreciate it)\b',
+            r'^(bye|goodbye|see you|cya|later)\b',
+            r'^(how are you|how\'s it going|how are ya|how do you do)\b',
+            r'^(ok|okay|cool|nice|great|awesome|perfect)\b',
+            r'^(yes|no|yeah|yep|nope|sure)\b',
+            r'(what are you|what\'re you|whatcha|wyd)',
+            r'(tell me about yourself|who are you|introduce yourself)',
+            r'(good morning|good afternoon|good evening|good night)',
+            r'(nice to meet you|pleased to meet you)',
+        ]
+        
+        self.casual_keywords = [
+            'doing now', 'doing today', 'your name', 'about you', 
+            'feeling', 'your day', 'up to', 'busy'
+        ]
+        
         self.embeddings = OpenAIEmbeddings(
             model="text-embedding-3-small",
             openai_api_key=openai_api_key
@@ -62,7 +81,11 @@ class RAGEngineWithVision:
         print("[RAG Engine] ✅ General chat mode enabled!")
     
     def _get_temperature(self, model_name):
-        if model_name.startswith("o3") or model_name.startswith("o4"):
+        if model_name.startswith("o1") or model_name.startswith("o3") or model_name.startswith("o4"):
+            print(f"[Temperature] Using temperature=1 for reasoning model: {model_name}")
+            return 1.0
+        elif model_name.startswith("gpt-5"):
+            print(f"[Temperature] Using temperature=1 for GPT-5: {model_name}")
             return 1.0
         return 0.7
     
@@ -72,6 +95,38 @@ class RAGEngineWithVision:
     
     def _is_image_file(self, file_type):
         return file_type in ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'webp', 'tiff']
+    
+    def _is_casual_message(self, message):
+        msg_lower = message.lower().strip()
+        
+        for pattern in self.casual_patterns:
+            if re.search(pattern, msg_lower, re.IGNORECASE):
+                return True
+        
+        for keyword in self.casual_keywords:
+            if keyword in msg_lower:
+                return True
+        
+        if len(msg_lower.split()) <= 3 and '?' not in msg_lower:
+            return True
+        
+        words = msg_lower.split()
+        
+        if 'document' in msg_lower or 'file' in msg_lower or 'pdf' in msg_lower:
+            return False
+        if 'content' in msg_lower or 'show' in msg_lower or 'find' in msg_lower:
+            return False
+        if 'search' in msg_lower or 'list' in msg_lower or 'extract' in msg_lower:
+            return False
+        
+        if any(combo in msg_lower for combo in ['what are you', 'what\'re you', 'whatcha']):
+            return True
+        
+        if 'you' in words or 'your' in words or 'yourself' in words:
+            if len(words) <= 10:
+                return True
+        
+        return False
     
     def _process_image_with_vision(self, image_bytes, file_name):
         print(f"[Vision] Analyzing image: {file_name}")
@@ -337,6 +392,26 @@ Be thorough and specific so this description can be used to answer questions abo
     def ask_question(self, question):
         print(f"[Query] {question}")
         start_time = time.time()
+        
+        is_casual = self._is_casual_message(question)
+        print(f"[DEBUG] Is casual message: {is_casual}")
+        
+        if is_casual:
+            print("[INFO] Casual message detected - using direct chat")
+            if not self.llm:
+                raise ValueError("LLM not initialized")
+            
+            from langchain_core.messages import HumanMessage
+            response = self.llm.invoke([HumanMessage(content=question)])
+            
+            elapsed = time.time() - start_time
+            print(f"[Query] ✅ Answered in {elapsed:.2f}s (casual chat)")
+            
+            return {
+                "answer": response.content,
+                "source_documents": [],
+                "mode": "casual_chat"
+            }
         
         try:
             if not self.vectorstore or not self.chain:
